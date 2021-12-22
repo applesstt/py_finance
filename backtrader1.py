@@ -40,7 +40,7 @@ df = df.set_index('date')
 
 class MAcrossover(bt.Strategy): 
   #移动平均参数
-  params = (('pfast',5),('pslow',15),)
+  params = (('pfast',20),('pslow',40),)
   def log(self, txt, dt=None):     
     dt = dt or self.datas[0].datetime.date(0)     
     print('%s, %s' % (dt.isoformat(), txt))  # 执行策略优化时 可注释掉此行
@@ -77,16 +77,21 @@ class MAcrossover(bt.Strategy):
       #SMA快线突破SMA慢线
       if self.fast_sma[0] > self.slow_sma[0] and self.fast_sma[-1] < self.slow_sma[-1]:
         self.order = self.buy()
-      #如果SMA快线跌破SMA慢线
-      elif self.fast_sma[0] < self.slow_sma[0] and self.fast_sma[-1] > self.slow_sma[-1]:
-        self.log('SELL CREATE, %.2f' % self.dataclose[0])
-        #继续追踪已经创建的订单，避免重复开仓
-        self.order = self.sell()
+      # #如果SMA快线跌破SMA慢线
+      # elif self.fast_sma[0] < self.slow_sma[0] and self.fast_sma[-1] > self.slow_sma[-1]:
+      #   self.log('SELL CREATE, %.2f' % self.dataclose[0])
+      #   #继续追踪已经创建的订单，避免重复开仓
+      #   self.order = self.sell()
     else:
-      # 如果已有持仓，寻找平仓信号
-      if len(self) >= (self.bar_executed + 5):
+      #如果SMA快线跌破SMA慢线
+      if self.fast_sma[0] < self.slow_sma[0] and self.fast_sma[-1] > self.slow_sma[-1]:
         self.log('CLOSE CREATE, %.2f' % self.dataclose[0])
+        #继续追踪已经创建的订单，避免重复开仓
         self.order = self.close()
+      # 如果已有持仓，寻找平仓信号
+      # if len(self) >= (self.bar_executed + 5):
+      #   self.log('CLOSE CREATE, %.2f' % self.dataclose[0])
+      #   self.order = self.close()
 
 
 """ class PrintClose(bt.Strategy):
@@ -112,6 +117,8 @@ if __name__ == '__main__':
   cerebro.adddata(btData)
   # 设置投资金额100000.0
   cerebro.broker.setcash(100000.0)
+
+  cerebro.addsizer(bt.sizers.SizerFix, stake=1)
 
   #给Cebro引擎添加策略
   cerebro.addstrategy(MAcrossover)
