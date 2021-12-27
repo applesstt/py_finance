@@ -1,9 +1,13 @@
 import backtrader as bt
 # import datetime
 
+# 待实现策略
+# 1. 小级别的海龟策略（与大趋势一致）
+# 2. 大趋势向下 回弹但未超出前高 并连续两根未超出前高 开空 （反之同理）
+# 3. 均线较差开仓 回调至前两根的高（低）点止损
 class MoeStrategy(bt.Strategy): 
   #移动平均参数
-  params = (('pfast',20),('pslow',40),)
+  params = (('pfast',50),('pslow',200),)
   def log(self, txt, dt=None):     
     dt = dt or self.datas[0].datetime.date(0)     
     print('%s, %s' % (dt.isoformat(), txt))  # 执行策略优化时 可注释掉此行

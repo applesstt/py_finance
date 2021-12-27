@@ -28,6 +28,9 @@ if __name__ == '__main__':
 
   # matplot 版本问题 see:https://stackoverflow.com/questions/63471764/importerror-cannot-import-name-warnings-from-matplotlib-dates
   cerebro.plot(
-    loc='grey',
+    style='candlestick',
+    barup='green',
+    bardown='red',
     grid=False
   )
+  
