@@ -7,7 +7,7 @@ import backtrader as bt
 # 3. 均线较差开仓 回调至前两根的高（低）点止损
 class MoeStrategy(bt.Strategy): 
   #移动平均参数
-  params = (('pfast',50),('pslow',200),)
+  params = (('pfast',30),('pslow',500),)
   def log(self, txt, dt=None):     
     dt = dt or self.datas[0].datetime.date(0)     
     print('%s, %s' % (dt.isoformat(), txt))  # 执行策略优化时 可注释掉此行
