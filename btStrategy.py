@@ -1,6 +1,17 @@
 import backtrader as bt
 # import datetime
 
+# 待实现功能
+# 1. 记录当前仓位
+# 2. 在最后一根蜡烛图 强行平仓
+# 3. 打印最终收益
+# 4. 唐安奇通道
+# 5. 计算ART
+# 6. 小时级别数据 1-2年
+# 7. 确认一下开仓点是否是蜡烛图的open
+# 8. 引入杠杆概念
+# 9. 抽象python函数
+
 # 待实现策略
 # 1. 小级别的海龟策略（与大趋势一致）
 # 2. 大趋势向下 回弹但未超出前高 并连续两根未超出前高 开空 （反之同理）
@@ -38,28 +49,28 @@ class MoeStrategy(bt.Strategy):
     # 检测是否有未完成订单
     if self.order:
       return
+
     #验证是否有持仓
-    if not self.position:
+    # if not self.position:
     #如果没有持仓，寻找开仓信号
-      #SMA快线突破SMA慢线
-      if self.fast_sma[0] > self.slow_sma[0] and self.fast_sma[-1] < self.slow_sma[-1]:
-        self.order = self.buy()
-      # #如果SMA快线跌破SMA慢线
-      # elif self.fast_sma[0] < self.slow_sma[0] and self.fast_sma[-1] > self.slow_sma[-1]:
-      #   self.log('SELL CREATE, %.2f' % self.dataclose[0])
-      #   #继续追踪已经创建的订单，避免重复开仓
-      #   self.order = self.sell()
-    else:
-      #如果SMA快线跌破SMA慢线
-      if self.fast_sma[0] < self.slow_sma[0] and self.fast_sma[-1] > self.slow_sma[-1]:
+    #SMA快线突破SMA慢线
+    if self.fast_sma[0] > self.slow_sma[0] and self.fast_sma[-1] < self.slow_sma[-1]:
+      self.order = self.buy()
+    # #如果SMA快线跌破SMA慢线
+    # elif self.fast_sma[0] < self.slow_sma[0] and self.fast_sma[-1] > self.slow_sma[-1]:
+    #   self.log('SELL CREATE, %.2f' % self.dataclose[0])
+    #   #继续追踪已经创建的订单，避免重复开仓
+    #   self.order = self.sell()
+    
+    #如果SMA快线跌破SMA慢线
+    elif self.fast_sma[0] < self.slow_sma[0] and self.fast_sma[-1] > self.slow_sma[-1]:
         self.log('CLOSE CREATE, %.2f' % self.dataclose[0])
         #继续追踪已经创建的订单，避免重复开仓
-        self.order = self.close()
+        self.order = self.sell()
       # 如果已有持仓，寻找平仓信号
       # if len(self) >= (self.bar_executed + 5):
       #   self.log('CLOSE CREATE, %.2f' % self.dataclose[0])
       #   self.order = self.close()
-
 
 """ class PrintClose(bt.Strategy):
   def __init__(self):
