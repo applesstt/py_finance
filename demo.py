@@ -3,14 +3,40 @@ import yfinance as yf
 import mplfinance as mpf
 import json
 import os
+from typing import TypedDict, Dict, Any
+
+# 定义JSON数据的类型结构··
+class TradeRecord(TypedDict):
+    timestamp: str
+    symbol: str
+    open: float
+    high: float
+    low: float
+    close: float
+    trades: int
+    volume: int
+    vwap: float
+    lastSize: int
+    turnover: int
+    homeNotional: float
+    foreignNotional: int
+
+# 定义格式化后数据的类型
+class FormattedTradeData(TypedDict):
+    timestamp: str
+    low: float
+    high: float
+    open: float
+    close: float
+    volume: int
 
 script_dir = os.path.dirname(__file__)
 file_path = os.path.join(script_dir, 'data/20211210.json')
-formatedData = []
-RVals = []
+formatedData: "list[FormattedTradeData]" = []
+RVals: "list[float]" = []
 
 with open(file_path) as fp:
-  data = json.load(fp)
+  data: "list[TradeRecord]" = json.load(fp)
   for index in range(len(data)):
     RVals.append(data[index]['high'] - data[index]['low'])
     if index % 3 == 0 and index + 2 < len(data):

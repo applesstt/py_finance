@@ -1,0 +1,17 @@
+{
+  "python.linting.enabled": true,
+  "python.analysis.extraPaths": [
+    "/opt/homebrew/lib/python3.11/site-packages"
+  ],
+  "python.defaultInterpreterPath": "/opt/homebrew/bin/python3",
+  "python.analysis.diagnosticMode": "workspace",
+  "python.analysis.typeCheckingMode": "basic",
+  "python.analysis.diagnosticSeverityOverrides": {
+    "reportUnknownMemberType": "none",
+    "reportMissingTypeStubs": "none",
+    "reportUnknownArgumentType": "none",
+    "reportMissingImports": "none",
+    "reportGeneralTypeIssues": "none",
+    "reportUnknownVariableType": "none"
+  }
+} 

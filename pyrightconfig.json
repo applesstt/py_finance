@@ -1,0 +1,14 @@
+{
+  "include": [
+    "."
+  ],
+  "typeCheckingMode": "off",
+  "pythonVersion": "3.8",
+  "stubPath": "./typings",
+  "reportMissingImports": false,
+  "useLibraryCodeForTypes": true,
+  "reportGeneralTypeIssues": "none",
+  "extraPaths": [
+    "/opt/homebrew/lib/python3.11/site-packages"
+  ]
+} 
