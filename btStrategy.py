@@ -18,7 +18,7 @@ import backtrader as bt
 # 3. 均线较差开仓 回调至前两根的高（低）点止损
 class MoeStrategy(bt.Strategy): 
   #移动平均参数
-  params   = (('pfast',30),('pslow',500),)
+  params = (('pfast',80),('pslow',300),)
   def log(self, txt, dt=None):     
     dt = dt or self.datas[0].datetime.date(0)     
     print('%s, %s' % (dt.isoformat(), txt))  # 执行策略优化时 可注释掉此行
@@ -50,27 +50,29 @@ class MoeStrategy(bt.Strategy):
     if self.order:
       return
 
-    #验证是否有持仓
-    # if not self.position:
-    #如果没有持仓，寻找开仓信号
-    #SMA快线突破SMA慢线
-    if self.fast_sma[0] > self.slow_sma[0] and self.fast_sma[-1] < self.slow_sma[-1]:
-      self.order = self.buy()
-    # #如果SMA快线跌破SMA慢线
-    # elif self.fast_sma[0] < self.slow_sma[0] and self.fast_sma[-1] > self.slow_sma[-1]:
-    #   self.log('SELL CREATE, %.2f' % self.dataclose[0])
-    #   #继续追踪已经创建的订单，避免重复开仓
-    #   self.order = self.sell()
+    # 获取当前买入信号和卖出信号
+    buy_signal = self.fast_sma[0] > self.slow_sma[0] and self.fast_sma[-1] < self.slow_sma[-1]
+    sell_signal = self.fast_sma[0] < self.slow_sma[0] and self.fast_sma[-1] > self.slow_sma[-1]
     
-    #如果SMA快线跌破SMA慢线
-    elif self.fast_sma[0] < self.slow_sma[0] and self.fast_sma[-1] > self.slow_sma[-1]:
-        self.log('CLOSE CREATE, %.2f' % self.dataclose[0])
-        #继续追踪已经创建的订单，避免重复开仓
-        self.order = self.sell()
-      # 如果已有持仓，寻找平仓信号
-      # if len(self) >= (self.bar_executed + 5):
-      #   self.log('CLOSE CREATE, %.2f' % self.dataclose[0])
-      #   self.order = self.close()
+    # 根据当前持仓状态决定可以执行的操作
+    if not self.position:  # 没有持仓
+        # 可以根据信号自由开仓
+        if buy_signal:
+            self.log('BUY CREATE, %.2f' % self.dataclose[0])
+            self.order = self.buy()
+        elif sell_signal:
+            self.log('SELL CREATE, %.2f' % self.dataclose[0])
+            self.order = self.sell()
+    elif self.position.size > 0:  # 有多头持仓(买入)
+        # 只能卖出平仓，不能继续买入
+        if sell_signal:
+            self.log('CLOSE LONG POSITION, %.2f' % self.dataclose[0])
+            self.order = self.close()  # 平仓当前持仓
+    elif self.position.size < 0:  # 有空头持仓(卖出)
+        # 只能买入平仓，不能继续卖出
+        if buy_signal:
+            self.log('CLOSE SHORT POSITION, %.2f' % self.dataclose[0])
+            self.order = self.close()  # 平仓当前持仓
 
 """ class PrintClose(bt.Strategy):
   def __init__(self):
