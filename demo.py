@@ -5,7 +5,7 @@ import json
 import os
 
 script_dir = os.path.dirname(__file__)
-file_path = os.path.join(script_dir, '20211210.json')
+file_path = os.path.join(script_dir, 'data/20211210.json')
 formatedData = []
 RVals = []
 

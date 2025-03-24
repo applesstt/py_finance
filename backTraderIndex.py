@@ -23,14 +23,15 @@ if __name__ == '__main__':
   #运行Cebro引擎
   cerebro.run()
 
-  # 引擎运行后打期末资金
-  # print('组合期末资金: %.2f' % cerebro.broker.getvalue())
+  # 引擎运行后打印期末资金
+  print('期末资金: %.2f' % cerebro.broker.getvalue())
 
+  # 因为Matplotlib兼容性问题，暂时注释掉绘图代码
   # matplot 版本问题 see:https://stackoverflow.com/questions/63471764/importerror-cannot-import-name-warnings-from-matplotlib-dates
-  cerebro.plot(
-    style='candlestick',
-    barup='green',
-    bardown='red',
-    grid=False
-  )
+  # cerebro.plot(
+  #   style='candlestick',
+  #   barup='green',
+  #   bardown='red',
+  #   grid=False
+  # )
   
