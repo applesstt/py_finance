@@ -71,6 +71,26 @@ class SPY0DTEOptionStrategy(QCAlgorithm):
         self.lastSignalType = None
         self.lastSignalTime = None
         
+        # 交易时间限制 - 多窗口设置
+        self.market_open_time = None
+        
+        # 获取参数并确保转换为整数
+        try:
+            start_min = int(self.get_parameter('start_min'))
+            end_min = int(self.get_parameter('end_min'))
+        except (ValueError, TypeError):
+            # 如果参数不是有效的整数或者参数不存在，使用默认值
+            self.Debug("无法获取有效的start_min或end_min参数，使用默认值")
+            start_min = 15
+            end_min = 70
+            
+        # 定义多个交易窗口，格式为 [{"start": 开始分钟, "end": 结束分钟}, ...]
+        self.trading_windows = [
+            {"start": start_min, "end": end_min},
+            # {"start": 180, "end": 210}, 
+            # {"start": 360, "end": 390} 
+        ]
+        
         # 设置每天开盘时重置
         self.Schedule.On(self.DateRules.EveryDay(self.spy), 
                          self.TimeRules.AfterMarketOpen(self.spy, 1), 
@@ -83,6 +103,14 @@ class SPY0DTEOptionStrategy(QCAlgorithm):
         
         self.Debug(f"回测设置的开始日期: {self.StartDate}")
         self.Debug(f"回测设置的结束日期: {self.EndDate}")
+        self.Debug(f"交易窗口设置: {len(self.trading_windows)}个交易时段")
+        for i, window in enumerate(self.trading_windows):
+            self.Debug(f"窗口 {i+1}: 开盘后{window['start']}分钟 至 开盘后{window['end']}分钟")
+        
+        self.settings.daily_precise_end_time = False
+        
+        # 在Initialize中设置
+        self.price_channel_step = 1.2  # 价格通道步长
     
     def ResetDailyValues(self):
         """每日开盘重置值"""
@@ -96,8 +124,19 @@ class SPY0DTEOptionStrategy(QCAlgorithm):
         self.price_history = []
         self.kdj_history = []
         
+        # 记录每日开盘时间，用于计算交易窗口
+        self.market_open_time = self.Time
         self.Debug(f"=== 新交易日开始: {self.Time.date()} ===")
-        # 添加更多状态日志
+        
+        # 输出每个交易窗口的具体时间
+        for i, window in enumerate(self.trading_windows):
+            # 确保start和end是整数类型
+            start_min = int(window["start"]) if isinstance(window["start"], str) else window["start"]
+            end_min = int(window["end"]) if isinstance(window["end"], str) else window["end"]
+            
+            window_start = self.market_open_time + timedelta(minutes=start_min)
+            window_end = self.market_open_time + timedelta(minutes=end_min)
+            self.Debug(f"交易窗口 {i+1}: {window_start.time()} 至 {window_end.time()}")
     
     def OnData(self, data):
         """每个数据事件处理"""
@@ -167,14 +206,14 @@ class SPY0DTEOptionStrategy(QCAlgorithm):
         self.condt0 = self.dayku <= 2.4
         
         # 价格连续性
-        self.newup = self.CheckConsecutiveCondition(self.newUpCount, 5)  # 相当于原策略的NEWUP
-        self.newdown = self.CheckConsecutiveCondition(self.newDownCount, 5)  # 相当于原策略的NEWDOWN
+        self.newup = self.CheckConsecutiveCondition(self.newUpCount, 69)
+        self.newdown = self.CheckConsecutiveCondition(self.newDownCount, 69)
         
         # 计算价格通道
         if (self.condt1 or self.condt2) and not self.newup:
             self.dd0 = self.dayHigh
-            self.dd1 = self.dd0 - 1.2
-            self.dd2 = self.dd0 - 2.4
+            self.dd1 = self.dd0 - self.price_channel_step
+            self.dd2 = self.dd0 - 2 * self.price_channel_step
             self.dd3 = self.dd0 - 3.6
             self.dd4 = self.dd0 - 4.8
             self.dd5 = self.dd0 - 6.0
@@ -237,8 +276,8 @@ class SPY0DTEOptionStrategy(QCAlgorithm):
         return (self.kdj_history[-1]['k'], self.kdj_history[-1]['d'], self.kdj_history[-1]['j'])
     
     def CheckConsecutiveCondition(self, count, threshold):
-        """检查连续条件"""
-        return count >= threshold
+        """检查N个周期内价格是否保持不变"""
+        return count >= threshold  # 考虑改为69作为阈值，与原策略匹配
     
     def GenerateTradeSignals(self):
         """生成交易信号"""
@@ -262,7 +301,7 @@ class SPY0DTEOptionStrategy(QCAlgorithm):
             (self.condt1 or self.condt2) and 
             not (jn < kn and jn > 25)):
             buy_signal = True
-            # self.Debug("触发买入信号1")
+            self.Debug("触发买入信号1")
         
         # 计算买入条件2: CROSS(C,UU1)&&C-LLV(L,3)>1.15&&(CONDT1||CONDT2)
         if not buy_signal:
@@ -285,6 +324,16 @@ class SPY0DTEOptionStrategy(QCAlgorithm):
                 self.dayku < 5.3):
                 buy_signal = True
                 # self.Debug("触发买入信号3")
+        
+        # 例如添加DAYBARPOS<46条件
+        if (len(self.price_history) >= 2 and 
+            self.price_history[-2]['close'] <= self.uu1 and 
+            current_price > self.uu1 and 
+            self.kuand > 2.5 and 
+            (self.condt1 or self.condt2) and 
+            not (jn < kn and jn > 25) and
+            self.dayBarCount < 46):  # 添加此条件
+            buy_signal = True
         
         # 卖出信号条件
         sell_signal = False
@@ -389,6 +438,12 @@ class SPY0DTEOptionStrategy(QCAlgorithm):
         
         # 执行交易
         if not self.inLongPosition and not self.inShortPosition:
+            # 只在开盘后15分钟内开仓
+            if not self.IsWithinTradingWindow():
+                if buy_signal or sell_signal:
+                    self.Debug(f"触发交易信号，但不在交易窗口内 (当前时间: {self.Time})")
+                return
+                
             if buy_signal and self.IsValidSignal("BK"):
                 self.EnterLong()
             elif sell_signal and self.IsValidSignal("SK"):
@@ -420,6 +475,11 @@ class SPY0DTEOptionStrategy(QCAlgorithm):
         """买入开仓"""
         if self.inLongPosition or self.inShortPosition:
             return
+            
+        # 再次检查是否在交易窗口内
+        if not self.IsWithinTradingWindow():
+            self.Debug("尝试多头开仓，但已超出交易窗口期")
+            return
         
         # 获取合适的期权合约
         contracts = self.GetOptionContracts(True)  # 买入看涨期权
@@ -446,6 +506,11 @@ class SPY0DTEOptionStrategy(QCAlgorithm):
     def EnterShort(self):
         """卖出开仓"""
         if self.inLongPosition or self.inShortPosition:
+            return
+            
+        # 再次检查是否在交易窗口内
+        if not self.IsWithinTradingWindow():
+            self.Debug("尝试空头开仓，但已超出交易窗口期")
             return
         
         # 获取合适的期权合约
@@ -547,3 +612,39 @@ class SPY0DTEOptionStrategy(QCAlgorithm):
         
         # 确保至少购买1张合约
         return max(1, contracts)
+
+    # 计算CONDKRUO
+    def CalculateCONDKRUO(self):
+        jn_crosses_down_kn_count = 0
+        jn_above_kn_count = 0
+        kn_above_jn_count = 0
+        
+        for i in range(len(self.kdj_history)-1):
+            if self.kdj_history[i]['j'] > self.kdj_history[i]['k'] and self.kdj_history[i+1]['j'] <= self.kdj_history[i+1]['k']:
+                jn_crosses_down_kn_count += 1
+            
+            if self.kdj_history[i]['j'] > self.kdj_history[i]['k']:
+                jn_above_kn_count += 1
+            else:
+                kn_above_jn_count += 1
+        
+        condkruo = jn_crosses_down_kn_count <= 1 and jn_above_kn_count > kn_above_jn_count
+
+    def IsWithinTradingWindow(self):
+        """检查当前时间是否在任一交易窗口内"""
+        if self.market_open_time is None:
+            return False
+            
+        # 计算当前时间与开盘时间的差异（分钟）
+        time_since_open = (self.Time - self.market_open_time).total_seconds() / 60
+        
+        # 检查当前时间是否在任意一个交易窗口内
+        for window in self.trading_windows:
+            # 确保start和end是整数类型
+            start_min = int(window["start"]) if isinstance(window["start"], str) else window["start"]
+            end_min = int(window["end"]) if isinstance(window["end"], str) else window["end"]
+            
+            if start_min <= time_since_open <= end_min:
+                return True
+                
+        return False
