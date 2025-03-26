@@ -15,9 +15,38 @@ import numpy as np
 class SPY0DTEOptionStrategy(QCAlgorithm):
     
     def Initialize(self):
-        # 设置回测的开始日期和现金
-        self.SetStartDate(2024, 1, 20)
-        self.SetEndDate(2024, 2, 20)
+        # 使用单个参数来切换交易环境
+        # 可选值：'backtest'(回测), 'paper'(模拟交易), 'live'(实盘交易)
+        # 默认为'backtest'(回测)模式
+        try:
+            trading_mode = self.get_parameter('trading_mode')
+            if trading_mode not in ["backtest", "paper", "live"]:
+                trading_mode = "backtest"  # 默认为回测模式
+                self.Debug(f"未指定有效的交易环境，默认使用回测模式")
+        except (ValueError, TypeError):
+            trading_mode = "backtest"  # 参数不存在时默认为回测模式
+            self.Debug(f"未找到交易环境参数，默认使用回测模式")
+        
+        self.Debug(f"当前交易环境: {trading_mode}")
+        
+        # 根据交易环境设置不同的配置
+        if trading_mode == "backtest":
+            # 回测模式设置
+            self.SetStartDate(2024, 1, 20)
+            self.SetEndDate(2024, 2, 20)
+            self.Debug("使用回测模式，应用设定的日期范围")
+        elif trading_mode == "live":
+            # 实盘交易模式
+            self.SetBrokerageModel(BrokerageName.InteractiveBrokersBrokerage, AccountType.Margin)
+            self.Debug("警告：使用实盘交易模式，将使用真实资金进行交易！")
+            # 实盘模式可以设置更严格的风险控制
+            self.daily_loss_limit = -0.02  # 每日最大亏损限制为2%
+        else:
+            # 模拟交易模式
+            self.SetBrokerageModel(BrokerageName.InteractiveBrokersBrokerage, AccountType.Paper)
+            self.Debug("使用模拟交易模式，连接到模拟交易账户")
+        
+        # 设置初始资金，所有模式都需要
         self.SetCash(10000)  # 初始资金
         
         # 设置数据分辨率和数据订阅
@@ -81,8 +110,8 @@ class SPY0DTEOptionStrategy(QCAlgorithm):
         except (ValueError, TypeError):
             # 如果参数不是有效的整数或者参数不存在，使用默认值
             self.Debug("无法获取有效的start_min或end_min参数，使用默认值")
-            start_min = 15
-            end_min = 70
+            start_min = 0  # 修改默认值为0 (开盘时刻)
+            end_min = 340  # 修改默认值为340 (接近收盘时刻)
             
         # 定义多个交易窗口，格式为 [{"start": 开始分钟, "end": 结束分钟}, ...]
         self.trading_windows = [
@@ -101,8 +130,9 @@ class SPY0DTEOptionStrategy(QCAlgorithm):
                          self.TimeRules.BeforeMarketClose(self.spy, 10), 
                          self.CloseAllPositions)
         
-        self.Debug(f"回测设置的开始日期: {self.StartDate}")
-        self.Debug(f"回测设置的结束日期: {self.EndDate}")
+        if hasattr(self, 'StartDate'):
+            self.Debug(f"回测设置的开始日期: {self.StartDate}")
+            self.Debug(f"回测设置的结束日期: {self.EndDate}")
         self.Debug(f"交易窗口设置: {len(self.trading_windows)}个交易时段")
         for i, window in enumerate(self.trading_windows):
             self.Debug(f"窗口 {i+1}: 开盘后{window['start']}分钟 至 开盘后{window['end']}分钟")
