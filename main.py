@@ -111,7 +111,7 @@ class SPY0DTEOptionStrategy(QCAlgorithm):
             # 如果参数不是有效的整数或者参数不存在，使用默认值
             self.Debug("无法获取有效的start_min或end_min参数，使用默认值")
             start_min = 0  # 修改默认值为0 (开盘时刻)
-            end_min = 340  # 修改默认值为340 (接近收盘时刻)
+            end_min = 390  # 修改默认值为340 (接近收盘时刻)
             
         # 定义多个交易窗口，格式为 [{"start": 开始分钟, "end": 结束分钟}, ...]
         self.trading_windows = [
