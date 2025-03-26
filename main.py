@@ -77,6 +77,9 @@ class SPY0DTEOptionStrategy(QCAlgorithm):
         self.highestSinceEntry = 0
         self.lowestSinceEntry = float('inf')
         
+        # 交易计数器 - 只保留总计数，不再每日重置
+        self.trade_count = 0  # 总交易计数器
+        
         # KDJ 参数
         self.n1 = 18
         self.m1 = 18
@@ -163,6 +166,8 @@ class SPY0DTEOptionStrategy(QCAlgorithm):
     
     def ResetDailyValues(self):
         """每日开盘重置值"""
+        # 移除了每日交易计数的重置代码
+        
         self.dayBarCount = 0
         self.dayHigh = 0
         self.dayLow = float('inf')
@@ -235,12 +240,12 @@ class SPY0DTEOptionStrategy(QCAlgorithm):
         if self.inLongPosition:
             if current_price > self.highestSinceEntry:
                 self.highestSinceEntry = current_price
-                self.Debug(f"更新多头持仓最高价: {self.highestSinceEntry}")
+                # self.Debug(f"更新多头持仓最高价: {self.highestSinceEntry}")
                 
         if self.inShortPosition:
             if current_low < self.lowestSinceEntry:
                 self.lowestSinceEntry = current_low
-                self.Debug(f"更新空头持仓最低价: {self.lowestSinceEntry}")
+                # self.Debug(f"更新空头持仓最低价: {self.lowestSinceEntry}")
     
     def CalculateConditions(self):
         """计算各种交易条件"""
@@ -309,8 +314,10 @@ class SPY0DTEOptionStrategy(QCAlgorithm):
             k = 50
             d = 50
         else:
-            k = (2 * self.kdj_history[-1]['k'] + rsv) / 3
-            d = (2 * self.kdj_history[-1]['d'] + k) / 3
+            # SMA(RSV1,4,1) = (RSV1 + 3*prev_K) / 4
+            k = (rsv + 3 * self.kdj_history[-1]['k']) / 4
+            # SMA(K,4,1) = (K + 3*prev_D) / 4
+            d = (k + 3 * self.kdj_history[-1]['d']) / 4
         
         # 计算J值
         j = 3 * k - 2 * d
@@ -424,6 +431,7 @@ class SPY0DTEOptionStrategy(QCAlgorithm):
                 # self.Debug("触发卖出信号3")
         
         # 平仓信号检查 - 多头平仓
+        # self.Debug(f"当前持仓状态: {self.inLongPosition}, {self.inShortPosition}, lastSignalType: {self.lastSignalType}")
         if self.inLongPosition:
             # 止盈条件1: C-BKPRICE>2.4&&C-REF(C,3)<0.74
             if (current_price - self.entryPrice > 2.4 and 
@@ -513,10 +521,10 @@ class SPY0DTEOptionStrategy(QCAlgorithm):
             return False
         
         # 两分钟内不重复交易
-        if self.lastSignalTime is not None:
-            time_diff = (self.Time - self.lastSignalTime).total_seconds() / 60
-            if time_diff < 2:
-                return False
+        # if self.lastSignalTime is not None:
+        #     time_diff = (self.Time - self.lastSignalTime).total_seconds() / 60
+        #     if time_diff < 2:
+        #         return False
         
         return True
     
@@ -542,7 +550,7 @@ class SPY0DTEOptionStrategy(QCAlgorithm):
         
         # 执行买入
         self.Buy(contract.Symbol, quantity)
-        self.Debug(f"买入开仓: {contract.Symbol.Value}, 价格: {contract.Price}, 数量: {quantity}")
+        self.trade_count += 1  # 增加交易计数
         
         # 更新状态
         self.inLongPosition = True
@@ -574,7 +582,7 @@ class SPY0DTEOptionStrategy(QCAlgorithm):
         
         # 执行买入
         self.Buy(contract.Symbol, quantity)
-        self.Debug(f"卖出开仓(买入看跌期权): {contract.Symbol.Value}, 价格: {contract.Price}, 数量: {quantity}")
+        self.trade_count += 1  # 增加交易计数
         
         # 更新状态
         self.inShortPosition = True
@@ -588,7 +596,8 @@ class SPY0DTEOptionStrategy(QCAlgorithm):
         """平仓当前持仓"""
         # 获取持仓
         holdings = list(self.Portfolio.Values)
-        closed = False
+        # closed = False
+        closed = True
         
         for holding in holdings:
             if holding.Invested:
@@ -600,7 +609,7 @@ class SPY0DTEOptionStrategy(QCAlgorithm):
             # 重置状态
             self.inLongPosition = False
             self.inShortPosition = False
-            self.lastSignalType = "SP" if self.inLongPosition else "BP"
+            self.lastSignalType = None  # 重置信号类型为None，而不是SP或BP
             self.lastSignalTime = self.Time
     
     def CloseAllPositions(self):
@@ -608,6 +617,11 @@ class SPY0DTEOptionStrategy(QCAlgorithm):
         self.Liquidate()
         self.inLongPosition = False
         self.inShortPosition = False
+        self.lastSignalType = None  # 重置信号类型为None
+        
+        # 打印总交易统计信息，不再显示"今日"
+        self.Debug(f"总开仓次数: {self.trade_count}")
+        
         self.Debug("收盘前平仓所有持仓")
     
     def GetOptionContracts(self, is_call):
@@ -680,6 +694,7 @@ class SPY0DTEOptionStrategy(QCAlgorithm):
         condkruo = jn_crosses_down_kn_count <= 1 and jn_above_kn_count > kn_above_jn_count
 
     def IsWithinTradingWindow(self):
+        return True
         """检查当前时间是否在任一交易窗口内"""
         if self.market_open_time is None:
             return False
@@ -696,4 +711,5 @@ class SPY0DTEOptionStrategy(QCAlgorithm):
             if start_min <= time_since_open <= end_min:
                 return True
                 
+        self.Debug(f"不在时间窗口")
         return False
