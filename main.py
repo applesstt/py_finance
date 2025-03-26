@@ -495,12 +495,6 @@ class SPY0DTEOptionStrategy(QCAlgorithm):
         
         # 执行交易
         if not self.inLongPosition and not self.inShortPosition:
-            # 只在开盘后15分钟内开仓
-            if not self.IsWithinTradingWindow():
-                if buy_signal or sell_signal:
-                    self.Debug(f"触发交易信号，但不在交易窗口内 (当前时间: {self.Time})")
-                return
-                
             if buy_signal and self.IsValidSignal("BK"):
                 self.EnterLong()
             elif sell_signal and self.IsValidSignal("SK"):
@@ -533,11 +527,6 @@ class SPY0DTEOptionStrategy(QCAlgorithm):
         if self.inLongPosition or self.inShortPosition:
             return
             
-        # 再次检查是否在交易窗口内
-        if not self.IsWithinTradingWindow():
-            self.Debug("尝试多头开仓，但已超出交易窗口期")
-            return
-        
         # 获取合适的期权合约
         contracts = self.GetOptionContracts(True)  # 买入看涨期权
         if not contracts:
@@ -565,11 +554,6 @@ class SPY0DTEOptionStrategy(QCAlgorithm):
         if self.inLongPosition or self.inShortPosition:
             return
             
-        # 再次检查是否在交易窗口内
-        if not self.IsWithinTradingWindow():
-            self.Debug("尝试空头开仓，但已超出交易窗口期")
-            return
-        
         # 获取合适的期权合约
         contracts = self.GetOptionContracts(False)  # 买入看跌期权
         if not contracts:
@@ -692,24 +676,4 @@ class SPY0DTEOptionStrategy(QCAlgorithm):
                 kn_above_jn_count += 1
         
         condkruo = jn_crosses_down_kn_count <= 1 and jn_above_kn_count > kn_above_jn_count
-
-    def IsWithinTradingWindow(self):
-        return True
-        """检查当前时间是否在任一交易窗口内"""
-        if self.market_open_time is None:
-            return False
-            
-        # 计算当前时间与开盘时间的差异（分钟）
-        time_since_open = (self.Time - self.market_open_time).total_seconds() / 60
         
-        # 检查当前时间是否在任意一个交易窗口内
-        for window in self.trading_windows:
-            # 确保start和end是整数类型
-            start_min = int(window["start"]) if isinstance(window["start"], str) else window["start"]
-            end_min = int(window["end"]) if isinstance(window["end"], str) else window["end"]
-            
-            if start_min <= time_since_open <= end_min:
-                return True
-                
-        self.Debug(f"不在时间窗口")
-        return False
