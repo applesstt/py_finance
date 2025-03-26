@@ -111,7 +111,7 @@ class SPY0DTEOptionStrategy(QCAlgorithm):
             # 如果参数不是有效的整数或者参数不存在，使用默认值
             self.Debug("无法获取有效的start_min或end_min参数，使用默认值")
             start_min = 0  # 修改默认值为0 (开盘时刻)
-            end_min = 390  # 修改默认值为340 (接近收盘时刻)
+            end_min = 340  # 修改默认值为340 (接近收盘时刻)
             
         # 定义多个交易窗口，格式为 [{"start": 开始分钟, "end": 结束分钟}, ...]
         self.trading_windows = [
@@ -119,6 +119,25 @@ class SPY0DTEOptionStrategy(QCAlgorithm):
             # {"start": 180, "end": 210}, 
             # {"start": 360, "end": 390} 
         ]
+        
+        # 设置日内K线区间参数（默认为[70, 140, 220, 340]）
+        try:
+            # 尝试从参数获取日内K线区间值
+            bar_ranges_str = self.get_parameter('bar_ranges')
+            if bar_ranges_str:
+                # 将字符串参数转换为数组，例如: "70,140,220,340"
+                self.bar_ranges = [int(x.strip()) for x in bar_ranges_str.split(',')]
+                # 验证参数长度
+                if len(self.bar_ranges) != 4:
+                    self.Debug("bar_ranges参数格式错误，必须包含4个值，使用默认值")
+                    self.bar_ranges = [70, 140, 220, 340]
+            else:
+                self.bar_ranges = [70, 140, 220, 340]  # 默认值
+        except (ValueError, TypeError):
+            self.Debug("无法获取有效的bar_ranges参数，使用默认值")
+            self.bar_ranges = [70, 140, 220, 340]  # 默认值
+            
+        self.Debug(f"日内K线区间设置: {self.bar_ranges}")
         
         # 设置每天开盘时重置
         self.Schedule.On(self.DateRules.EveryDay(self.spy), 
@@ -225,11 +244,11 @@ class SPY0DTEOptionStrategy(QCAlgorithm):
     
     def CalculateConditions(self):
         """计算各种交易条件"""
-        # 日内K线位置条件
-        self.condt1 = self.dayBarCount < 70
-        self.condt2 = self.dayBarCount >= 70 and self.dayBarCount < 140
-        self.condt3 = self.dayBarCount >= 140 and self.dayBarCount < 220
-        self.condt4 = self.dayBarCount >= 220 and self.dayBarCount < 340
+        # 日内K线位置条件 - 使用配置的参数而非硬编码值
+        self.condt1 = self.dayBarCount < self.bar_ranges[0]
+        self.condt2 = self.dayBarCount >= self.bar_ranges[0] and self.dayBarCount < self.bar_ranges[1]
+        self.condt3 = self.dayBarCount >= self.bar_ranges[1] and self.dayBarCount < self.bar_ranges[2]
+        self.condt4 = self.dayBarCount >= self.bar_ranges[2] and self.dayBarCount < self.bar_ranges[3]
         
         # 日内价格区间
         self.dayku = self.dayHigh - self.dayLow if self.dayLow != float('inf') else 0
